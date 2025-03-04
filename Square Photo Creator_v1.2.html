@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload and Display Photo with Blur Control</title>
+    <style>
+        /* Style for the container */
+        button {
+            margin-inline: 10px;
+        }
+        label {
+            margin-inline: 0.6em;
+        }
+        .image-container {
+            /*display: none;*/
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid black;
+            margin-top: 20px;
+            width: 500px; /* Display size */
+            height: 500px; /* Display size */
+        }
+
+        .blurred-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .original-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            margin: auto;
+            z-index: 1;
+        }
+
+        #download-preview {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+        .master-div {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            padding-block: 1em;
+            align-items: center;
+
+        }
+        .blur-div,.zoom-div{
+            display: flex;
+            /* max-width: 20em; */
+            width: 12em;
+            margin-inline: 2em;
+        }
+        .display-div {
+            display: flex;
+            gap: 2em;
+            flex-wrap: wrap;
+
+
+        }
+    </style>
+</head>
+<body>
+    <div class="master-div">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="blur-div">
+            <label for="blurSlider">Blur</label>
+            <input type="range" id="blurSlider" min="0" max="500" step="5" value="15">
+            <label id="blurValue">00</label>
+        </div>
+        <div class="zoom-div">
+            <label for="zoomSlider">Zoom</label>
+            <input type="range" id="zoomSlider" min="0" max="3" step="0.1" value="0.5">
+            <label id="zoomValue">00</label>
+        </div>
+
+        <button id="previewButton">Preview</button>
+        <button id="downloadButton">Download</button>
+        <button id="toggleButton">Toggle</button>
+        
+
+    </div>
+    <div class="display-div">
+        <div id="imageContainer" class="image-container"></div>
+        <canvas id="download-preview"></canvas>
+
+    </div>
+    
+    
+
+    <script>
+        let blurredImgElement, originalImgElement, currentBlurValue = 15, currentZoomValue = 0.5, originalImage;
+        let container, blurredCanvas, blurredCtx, downloadCanvas, downloadCtx;
+        var blurlabel = document.getElementById("blurValue");
+        var zoomlabel = document.getElementById("zoomValue");
+        var toggleButton = document.getElementById("toggleButton");
+        blurlabel.innerHTML =currentBlurValue;
+        zoomlabel.innerHTML = currentZoomValue;
+        var isToggled = false;
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const image = new Image();
+                originalImage = image; // Store the original image
+                image.onload = function() {
+                    const width = image.width;
+                    const height = image.height;
+
+                    // Create a square container for display
+                    container = document.getElementById('imageContainer');
+                    container.style.width = '500px';
+                    container.style.height = '500px';
+
+                    // Create a blurred background canvas for display
+                    blurredCanvas = document.createElement('canvas');
+                    blurredCanvas.width = 500;
+                    blurredCanvas.height = 500;
+                    blurredCtx = blurredCanvas.getContext('2d');
+
+                    // Apply initial blur and zoom
+                    applyBlurAndZoom(image, currentBlurValue, currentZoomValue);
+
+                    // Display the blurred image
+                    blurredImgElement = document.createElement('img');
+                    blurredImgElement.src = blurredCanvas.toDataURL();
+                    blurredImgElement.className = 'blurred-background';
+
+                    // Display the original image
+                    originalImgElement = document.createElement('img');
+                    originalImgElement.src = event.target.result;
+                    originalImgElement.className = 'original-image';
+
+                    // Clear any existing content and append the new images
+                    container.innerHTML = '';
+                    container.appendChild(blurredImgElement);
+                    container.appendChild(originalImgElement);
+                };
+                image.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function applyBlurAndZoom(image, blurValue, zoomValue) {
+            const displaySize = 500; // Display size
+            blurredCtx.clearRect(0, 0, blurredCanvas.width, blurredCanvas.height);
+            blurredCtx.filter = `blur(${blurValue}px)`;
+            // Scale the image to fill the canvas with zoom
+            const scaledWidth = image.width * zoomValue;
+            const scaledHeight = image.height * zoomValue;
+            const offsetX = (scaledWidth - displaySize) / 2;
+            const offsetY = (scaledHeight - displaySize) / 2;
+            blurredCtx.drawImage(image, -offsetX, -offsetY, scaledWidth, scaledHeight);
+        }
+
+        // Slider to adjust blur effect
+        const blurSlider = document.getElementById('blurSlider');
+        blurSlider.addEventListener('input', function() {
+            currentBlurValue = this.value;
+            blurlabel.innerHTML = currentBlurValue;
+            if (originalImage) {
+                applyBlurAndZoom(originalImage, currentBlurValue, currentZoomValue);
+                blurredImgElement.src = blurredCanvas.toDataURL(); // Update blurred image source
+                
+            }
+        });
+
+        // Slider to adjust zoom effect
+        const zoomSlider = document.getElementById('zoomSlider');
+        zoomSlider.addEventListener('input', function() {
+            currentZoomValue = parseFloat(this.value);
+            //console.log(currentZoomValue);
+            zoomlabel.innerHTML = currentZoomValue;
+            if (originalImage) {
+                applyBlurAndZoom(originalImage, currentBlurValue, currentZoomValue);
+                blurredImgElement.src = blurredCanvas.toDataURL(); // Update blurred image source
+            }
+        });
+
+        document.getElementById('previewButton').addEventListener('click', function() {
+            if (!blurredImgElement || !originalImgElement) return;
+            
+
+            // Create a new canvas to combine images at original size
+            const originalWidth = originalImage.width;
+            const originalHeight = originalImage.height;
+            const maxSize = Math.max(originalWidth, originalHeight);
+            downloadCanvas = document.createElement('canvas');
+            downloadCanvas.width = maxSize;
+            downloadCanvas.height = maxSize;
+            downloadCtx = downloadCanvas.getContext('2d');
+            //var blurfactor = originalHeight*originalWidth/(500*500);
+            
+
+            // Draw blurred background at original size
+            const blurredDownloadCanvas = document.createElement('canvas');
+            blurredDownloadCanvas.width = maxSize;
+            blurredDownloadCanvas.height = maxSize;
+            const blurredDownloadCtx = blurredDownloadCanvas.getContext('2d');
+            blurredDownloadCtx.filter = `blur(${currentBlurValue}px)`;
+            // Scale the image to fill the canvas with zoom
+            const scaledWidth = originalImage.width * currentZoomValue;
+            const scaledHeight = originalImage.height * currentZoomValue;
+            const offsetX = (scaledWidth - maxSize) / 2;
+            const offsetY = (scaledHeight - maxSize) / 2;
+            blurredDownloadCtx.drawImage(originalImage, -offsetX, -offsetY, scaledWidth, scaledHeight);
+            downloadCtx.drawImage(blurredDownloadCanvas, 0, 0);
+
+            // Draw original image on top at original size
+            downloadCtx.drawImage(originalImage, (maxSize - originalWidth) / 2, (maxSize - originalHeight) / 2);
+
+            // Display the combined image on a preview canvas
+            const previewCanvas = document.getElementById('download-preview');
+            previewCanvas.width = 500; //maxSize;
+            previewCanvas.height = 500; //maxSize;
+            const previewCtx = previewCanvas.getContext('2d');
+            previewCtx.drawImage(downloadCanvas, 0, 0,500,500); //(downloadCanvas, 0, 0);
+
+            // Download the canvas as an image
+            /*
+            setTimeout(function() {
+                downloadCanvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'blurred_photo.png';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            }, 1000); // Wait for 1 second to ensure preview is displayed
+            */
+        });
+        document.getElementById('downloadButton').addEventListener('click', function() {
+
+            downloadCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'blurred_photo.png';
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+
+        });
+        document.getElementById('toggleButton').addEventListener('click', function() {
+            var imgcontainer = document.getElementById('imageContainer');
+            isToggled = !isToggled; // Toggle the state
+            if (isToggled) {
+                imgcontainer.style.display = 'none';
+            } else {
+                imgcontainer.style.display = 'flex';
+            }
+
+            
+
+        });
+    </script>
+</body>
+</html>
